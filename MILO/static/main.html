@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>M.I.L.O - Intelligent Data Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #1e1e1e;
+            color: #f1f1f1;
+        }
+        /* Sidebar */
+        #sidebar {
+            width: 250px;
+            background-color: #252526;
+            padding: 1rem;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+        }
+        #sidebar h2 {
+            font-size: 16px;
+            margin-top: 0;
+            color: #ccc;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        #historyList {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        .history-item {
+            padding: 8px;
+            cursor: pointer;
+            background-color: #333;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .history-item:hover {
+            background-color: #4a4a4a;
+        }
+        .micBtn.is-listening {
+            background-color: #c53030;
+            box-shadow: 0 0 8px rgba(255, 100, 100, 0.7);
+        }
+        /* Main Content */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #1e1e1e;
+        }
+        header {
+            background-color: #1e1e1e;
+            padding: 1rem;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+        }
+        /* Question Input Row */
+        #askSection {
+            display: flex;
+            gap: 10px;
+            padding: 1rem;
+            background-color: #252526;
+            border-bottom: 1px solid #333;
+        }
+        #questionInput {
+            flex: 1;
+            padding: 0.75rem;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background-color: #3c3c3c;
+            color: #f1f1f1;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 5px;
+            background-color: #007acc;
+            color: #fff;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #005f9e;
+        }
+        .micBtn {
+            background-color: #444;
+        }
+        .micBtn:hover {
+            background-color: #555;
+        }
+        /* Control Buttons */
+        #controlButtons {
+            padding: 0.5rem 1rem;
+            display: flex;
+            gap: 10px;
+            background-color: #252526;
+        }
+        /* Output */
+        #output {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        #output h3 {
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            margin-top: 25px;
+        }
+        pre {
+            background: #2a2a2e;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+        #chart {
+            margin-top: 20px;
+        }
+        audio {
+            width: 100%;
+            margin-top: 15px;
+        }
+        #recommendationsList li {
+            cursor: pointer;
+            padding: 8px;
+            margin: 4px 0;
+            background-color: #333;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        #recommendationsList li:hover {
+            background-color: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>History</h2>
+        <div id="historyList"></div>
+        <div>
+            <button onclick="loadHistory()">Refresh</button>
+            <button onclick="clearHistory()">Clear All</button>
+        </div>
+    </div>
+
+    <div id="main">
+        <header>M.I.L.O - Intelligent Data Assistant</header>
+
+        <div id="askSection">
+            <input id="questionInput" type="text" placeholder="Ask me something..." onkeydown="handleEnter(event)">
+            <button onclick="askQuestion()">Ask</button>
+            <button class="micBtn" onclick="startListening()">🎤</button>
+        </div>
+
+        <div id="controlButtons">
+            <button id="muteBtn" onclick="toggleMute()">Mute Audio</button>
+            <button onclick="stopProcess()">Stop Response</button>
+        </div>
+
+        <div id="output">
+            <div id="loader" style="display:none; text-align:center; padding: 20px;">
+                <h3>Analyzing for you... 🧠</h3>
+            </div>
+
+            <div id="nlgResponse"></div>
+
+            <div id="sqlSection" style="display:none;">
+                <h3>Generated SQL</h3>
+                <pre id="sqlQuery"></pre>
+            </div>
+
+            <div id="resultsSection" style="display:none;">
+                <h3>Results</h3>
+                <pre id="results"></pre>
+            </div>
+
+            <div id="chart" style="display:none;">
+                <h3>Visualization</h3>
+                <div id="chartContainer"></div>
+            </div>
+
+            <div id="recommendationsSection" style="display:none;">
+                <h3>Follow-up Questions</h3>
+                <ul id="recommendationsList"></ul>
+            </div>
+
+            <audio id="audioPlayer" controls style="display:none;"></audio>
+        </div>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        // --- Existing Variables ---
+        let muteAudio = false;
+
+        // --- NEW: State Management for Voice Input ---
+        let socket;
+        let audioContext;
+        let processor;
+        let mediaStreamSource;
+        const SAMPLE_RATE = 16000;
+
+        // --- Existing Functions (Unchanged) ---
+        function toggleMute() {
+            muteAudio = !muteAudio;
+            document.getElementById("muteBtn").innerText = muteAudio ? "Unmute Audio" : "Mute Audio";
+        }
+
+        function stopProcess() {
+            fetch("/stop", { method: "POST" })
+                .then(res => res.json())
+                .then(data => alert("Process stop request sent."));
+        }
+
+        function clearHistory() {
+            if (confirm("Are you sure you want to clear all history?")) {
+                fetch("/clear-history", { method: "POST" })
+                    .then(res => res.json())
+                    .then(() => loadHistory());
+            }
+        }
+
+        function loadHistory() {
+            fetch("/history")
+                .then(res => res.json())
+                .then(data => {
+                    const historyList = document.getElementById("historyList");
+                    historyList.innerHTML = "";
+                    const items = data.history || [];
+                    items.forEach((hstr) => {
+                        try {
+                            const h = JSON.parse(hstr);
+                            if (h && h.question) {
+                                const div = document.createElement("div");
+                                div.className = "history-item";
+                                div.innerText = h.question;
+                                div.onclick = () => {
+                                    document.getElementById("questionInput").value = h.question;
+                                    askQuestion();
+                                };
+                                historyList.appendChild(div);
+                            }
+                        } catch (e) {
+                            console.error("Failed to parse history item:", hstr, e);
+                        }
+                    });
+                });
+        }
+        
+        function askQuestion() {
+            const question = document.getElementById("questionInput").value.trim();
+            if (!question) {
+                alert("Please enter a question.");
+                return;
+            }
+            document.getElementById("loader").style.display = "block";
+            document.getElementById("nlgResponse").innerText = "";
+            document.getElementById("sqlSection").style.display = "none";
+            document.getElementById("resultsSection").style.display = "none";
+            document.getElementById("chart").style.display = "none";
+            document.getElementById("recommendationsSection").style.display = "none";
+            document.getElementById("audioPlayer").style.display = "none";
+
+            const formData = new FormData();
+            formData.append("question", question);
+            formData.append("mute_audio", muteAudio);
+
+            fetch("/ask", { method: "POST", body: formData })
+                .then(res => res.json())
+                .then(displayResponse)
+                .catch(error => {
+                    console.error("Fetch Error:", error);
+                    document.getElementById("loader").style.display = "none";
+                    document.getElementById("nlgResponse").innerText = "An error occurred. Please check the console.";
+                });
+        }
+        
+        function displayResponse(data) {
+            document.getElementById("loader").style.display = "none";
+            document.getElementById("nlgResponse").innerText = data.nlg_response || "";
+            if (data.sql_query) {
+                document.getElementById("sqlSection").style.display = "block";
+                document.getElementById("sqlQuery").innerText = data.sql_query;
+            }
+            if (data.results && data.results.length > 0) {
+                document.getElementById("resultsSection").style.display = "block";
+                document.getElementById("results").innerText = JSON.stringify(data.results, null, 2);
+            }
+            if (data.chart_metadata && data.results && data.results.length > 0) {
+                document.getElementById("chart").style.display = "block";
+                renderChart(data.results, data.chart_metadata);
+            }
+            if (data.typed_recommendations && Object.keys(data.typed_recommendations).length > 0) {
+                document.getElementById("recommendationsSection").style.display = "block";
+                const listEl = document.getElementById("recommendationsList");
+                listEl.innerHTML = "";
+                for (const [type, text] of Object.entries(data.typed_recommendations)) {
+                    if (!text) continue;
+                    const li = document.createElement("li");
+                    li.innerText = text;
+                    li.onclick = () => {
+                        document.getElementById("questionInput").value = text;
+                        askQuestion();
+                    };
+                    listEl.appendChild(li);
+                }
+            }
+            if (data.audio_response && !muteAudio) {
+                const audioPlayer = document.getElementById("audioPlayer");
+                audioPlayer.src = `data:audio/mp3;base64,${data.audio_response}`;
+                audioPlayer.style.display = "block";
+                audioPlayer.play();
+            }
+        }
+
+        function renderChart(results, metadata) {
+            const layout = {
+                title: metadata.title,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#f1f1f1' },
+                xaxis: { gridcolor: '#444' },
+                yaxis: { gridcolor: '#444' }
+            };
+            let data;
+            if (metadata.chart_type === "bar") {
+                data = [{ type: 'bar', x: results.map(r => r[metadata.x_axis_column]), y: results.map(r => r[metadata.y_axis_column]) }];
+            } else if (metadata.chart_type === "pie") {
+                data = [{ type: 'pie', labels: results.map(r => r[metadata.label_column]), values: results.map(r => r[metadata.value_column]) }];
+            } else if (metadata.chart_type === "line") {
+                data = [{ type: 'scatter', mode: 'lines+markers', x: results.map(r => r[metadata.x_axis_column]), y: results.map(r => r[metadata.y_axis_column]) }];
+            }
+            Plotly.newPlot('chartContainer', data, layout);
+        }
+
+        function handleEnter(event) {
+            if (event.key === "Enter") {
+                askQuestion();
+            }
+        }
+
+        // --- NEW AND REWRITTEN: Voice Input Functions ---
+
+        /**
+         * Acts as a toggle to start or stop listening to the microphone.
+         */
+        function startListening() {
+            // If the socket is active, it means we are currently listening. Stop it.
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                stopListening();
+                return;
+            }
+
+            // Get microphone access
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    // Create WebSocket connection. Update the URL if your server is elsewhere.
+                    socket = new WebSocket(`ws://${window.location.host}/listen`);
+
+                    socket.onopen = () => {
+                        console.log("WebSocket connection established.");
+                        document.querySelector('.micBtn').classList.add('is-listening');
+                        
+                        // Start processing the microphone audio
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+                        mediaStreamSource = audioContext.createMediaStreamSource(stream);
+                        processor = audioContext.createScriptProcessor(1024, 1, 1);
+                        
+                        processor.onaudioprocess = (event) => {
+                            const inputData = event.inputBuffer.getChannelData(0);
+                            const downsampledBuffer = downsampleBuffer(inputData, audioContext.sampleRate, SAMPLE_RATE);
+                            const pcmData = to16BitPCM(downsampledBuffer);
+                            if (socket && socket.readyState === WebSocket.OPEN) {
+                                socket.send(pcmData);
+                            }
+                        };
+                        
+                        mediaStreamSource.connect(processor);
+                        processor.connect(audioContext.destination);
+                    };
+
+                    // Handle incoming transcriptions from the server
+                    socket.onmessage = (event) => {
+                        document.getElementById("questionInput").value = event.data;
+                    };
+
+                    socket.onclose = () => {
+                        console.log("WebSocket connection closed.");
+                        stopListening(); // Clean up resources
+                    };
+
+                    socket.onerror = (error) => {
+                        console.error("WebSocket Error:", error);
+                        stopListening(); // Clean up resources
+                    };
+                })
+                .catch(err => {
+                    console.error("Error accessing microphone:", err);
+                    alert("Could not access the microphone. Please grant permission.");
+                });
+        }
+
+        /**
+         * Stops the recording, closes the WebSocket, and releases audio resources.
+         */
+        function stopListening() {
+            if (processor) {
+                processor.disconnect();
+                processor = null;
+            }
+            if (mediaStreamSource) {
+                mediaStreamSource.disconnect();
+                mediaStreamSource = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+            document.querySelector('.micBtn').classList.remove('is-listening');
+        }
+
+        /**
+         * Converts a Float32Array to a 16-bit PCM Int16Array.
+         */
+        function to16BitPCM(input) {
+            const buffer = new ArrayBuffer(input.length * 2);
+            const view = new DataView(buffer);
+            for (let i = 0; i < input.length; i++) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+            return buffer;
+        }
+
+        /**
+         * Naive downsampling function.
+         */
+        function downsampleBuffer(buffer, inputSampleRate, outputSampleRate) {
+            if (inputSampleRate === outputSampleRate) {
+                return buffer;
+            }
+            const sampleRateRatio = inputSampleRate / outputSampleRate;
+            const newLength = Math.round(buffer.length / sampleRateRatio);
+            const result = new Float32Array(newLength);
+            let offsetResult = 0;
+            let offsetBuffer = 0;
+            while (offsetResult < result.length) {
+                const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+                let accum = 0, count = 0;
+                for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+                    accum += buffer[i];
+                    count++;
+                }
+                result[offsetResult] = accum / count;
+                offsetResult++;
+                offsetBuffer = nextOffsetBuffer;
+            }
+            return result;
+        }
+
+        // --- Initial Load ---
+        loadHistory();
+    </script>
+</body>
+</html>

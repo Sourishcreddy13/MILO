@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>API Health Status</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --status-ok: #22c55e;
+      --status-warn: #f59e0b;
+      --status-error: #ef4444;
+    }
+    body {
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      text-align: center;
+    }
+    .status-summary {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    #overall-status {
+      font-weight: 600;
+      font-size: 18px;
+      text-transform: uppercase;
+    }
+    #last-checked {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .dependencies {
+      display: grid;
+      gap: 16px;
+    }
+    .dependency {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .dependency-name {
+      font-weight: 500;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #000;
+    }
+    /* Status Colors */
+    .status-ok { background-color: var(--status-ok); }
+    .status-configured { background-color: var(--status-ok); }
+    .status-unavailable { background-color: var(--status-error); }
+    .status-not_configured { background-color: var(--status-warn); }
+    .service_unavailable { background-color: var(--status-error); }
+
+    .refresh-button {
+      margin-top: 24px;
+      width: 100%;
+      padding: 12px;
+      background-color: #1f2a44;
+      color: #cfe3ff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .refresh-button:hover {
+      background-color: #2e4066;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>API Health Status</h1>
+
+    <div class="status-summary">
+      <div id="overall-status">CHECKING...</div>
+      <div id="last-checked"></div>
+    </div>
+
+    <div class="dependencies">
+      <div class="dependency">
+        <span class="dependency-name">Database</span>
+        <span id="db-status" class="status-badge">...</span>
+      </div>
+      <div class="dependency">
+        <span class="dependency-name">Redis Cache</span>
+        <span id="redis-status" class="status-badge">...</span>
+      </div>
+      <div class="dependency">
+        <span class="dependency-name">Gemini API</span>
+        <span id="gemini-status" class="status-badge">...</span>
+      </div>
+    </div>
+    <button class="refresh-button" id="refreshBtn">Refresh</button>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    // Function to update the status badge element
+    function updateStatusElement(elementId, status) {
+        const el = $(elementId);
+        el.textContent = status.replace('_', ' ');
+        // Clean up previous status classes
+        el.className = 'status-badge'; 
+        // Add new class based on status
+        el.classList.add(`status-${status.toLowerCase()}`);
+    }
+
+    // Main function to fetch and display health status
+    async function fetchHealthStatus() {
+        try {
+            const response = await fetch('/health');
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+            const data = await response.json();
+
+            // Update Overall Status
+            updateStatusElement('overall-status', data.status);
+
+            // Update Last Checked Timestamp
+            const timestamp = new Date(data.timestamp).toLocaleString();
+            $('last-checked').textContent = `Last checked: ${timestamp}`;
+
+            // Update Dependency Statuses
+            updateStatusElement('db-status', data.dependencies.database);
+            updateStatusElement('redis-status', data.dependencies.redis);
+            updateStatusElement('gemini-status', data.dependencies.gemini_api);
+
+        } catch (error) {
+            console.error('Failed to fetch health status:', error);
+            const errorStatus = 'ERROR';
+            updateStatusElement('overall-status', errorStatus);
+            updateStatusElement('db-status', errorStatus);
+            updateStatusElement('redis-status', errorStatus);
+            updateStatusElement('gemini-status', errorStatus);
+            $('last-checked').textContent = 'Could not retrieve status.';
+        }
+    }
+
+    // Add event listener for the refresh button
+    $('refreshBtn').addEventListener('click', fetchHealthStatus);
+
+    // Fetch status on initial page load
+    document.addEventListener('DOMContentLoaded', fetchHealthStatus);
+    
+    // Auto-refresh status every 30 seconds
+    setInterval(fetchHealthStatus, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# Core FastAPI and Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+jinja2==3.1.2
+
+# Environment and Configuration
+python-dotenv==1.0.0
+
+# Database
+mysql-connector-python==8.2.0
+redis==5.0.1
+
+# Data Processing and Analysis
+pandas==2.1.3
+simplejson==3.19.2
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.17.0
+
+# AI and Machine Learning
+google-generativeai==0.3.2
+google-cloud-speech==2.22.0
+google-cloud-texttospeech==2.16.3
+
+# Audio Processing
+pyaudio==0.2.13
+pydub==0.25.1
+
+# Security
+cryptography==41.0.7
+
+# Development Dependencies (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1 
+
+
+ffmpeg
